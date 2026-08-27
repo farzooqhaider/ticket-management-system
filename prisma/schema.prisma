@@ -1,0 +1,93 @@
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  userName  String
+  email     String   @unique
+  phone     String
+  country   String
+  department String?
+  gender    String
+  password  String
+  role      Role     @default(CUSTOMER) // <-- new
+  createdAt DateTime @default(now())
+
+  // new relations
+  ticketsRequested Ticket[]  @relation("RequesterTickets")
+  ticketsAssigned  Ticket[]  @relation("AssigneeTickets")
+  comments         Comment[]
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_ON_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Ticket {
+  id          String         @id @default(cuid())
+  title       String
+  description String
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority
+  category    String?
+  department  String
+
+  requesterId String
+  requester   User           @relation("RequesterTickets", fields: [requesterId], references: [id])
+
+  assigneeId  String?
+  assignee    User?          @relation("AssigneeTickets", fields: [assigneeId], references: [id])
+
+  comments    Comment[]
+  activity    ActivityLog[]
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  message    String
+  isInternal Boolean  @default(false) // staff-only notes, never sent to the customer
+  createdAt  DateTime @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  action    String
+  actor     String
+  timestamp DateTime @default(now())
+}
+
+
+//   npx prisma migrate dev --name add_roles_and_tickets
